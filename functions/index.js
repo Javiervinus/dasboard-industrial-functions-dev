@@ -3,12 +3,17 @@ const encoladora = require('./encoladora/encoladora');
 
 
 // exports.prueba = encoladora.prueba;
+
 exports.prueba2 = encoladora.prueba;
 exports.CrearResumenMinutos = encoladora.CrearResumenMinutos;
+exports.CrearParos = encoladora.crearParos;
 exports.CrearResumenHoras = encoladora.CrearResumenHoras
 exports.CrearResumenDias = encoladora.CrearResumenDias
+exports.crearResumenTiemposC = encoladora.crearResumenTiemposC;
+exports.crearResumenTiemposU = encoladora.crearResumenTiemposU;
+
+
 //paros
-exports.CrearParos = encoladora.crearParos;
 
 
 // // Create and Deploy Your First Cloud Functions

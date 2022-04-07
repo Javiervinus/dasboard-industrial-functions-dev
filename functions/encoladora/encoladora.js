@@ -71,67 +71,7 @@ exports.prueba = functions.firestore.document("ordenes/encoladora").onUpdate((sn
 
 });
 
-exports.crearParos = functions.firestore.document("pulsos/{documentId}").onCreate(async (snaphot, context) => {
-    try {
-        const pulso = snaphot.data()
-        const ordenActiva = await ordenActivaRef.get()
-        if (ordenActiva) {
-            console.log(ordenActiva.data())
-            const idParo = moment(ordenActiva.data().fechaInicio).format("yyyyMMDDHHmmss")
-            let paro = parosCollectionRef.doc(ordenActiva.data().id).collection("paros").doc(idParo)
-            const paroAnteriorSnap = await parosCollectionRef.doc(ordenActiva.data().id).
-                collection("paros").where("fechaFin", "<=", snaphot.data().hora).
-                orderBy("fechaFin", "desc").limit(1).get();
-            const paroAnterior = paroAnteriorSnap.docs[0]?.data()
 
-            if (!paroAnterior) {
-                let horaInicio = moment(ordenActiva.data().fechaInicio);
-                let horaFin = moment(snaphot.data().hora);
-                let diff = horaFin.diff(horaInicio, "seconds")
-                let tipo = "uso";
-                if (ordenActiva.data().taza < diff) {
-                    tipo = "paro"
-                }
-                paro.set({
-                    fechaInicio: ordenActiva.data().fechaInicio,
-                    fechaFin: snaphot.data().hora,
-                    tipo
-                })
-            } else {
-                console.log(paroAnterior)
-                const idParoAnterior = moment(paroAnterior.fechaInicio).format("yyyyMMDDHHmmss")
-                let paroAnteriorObj = await parosCollectionRef.doc(ordenActiva.data().id).
-                    collection("paros").doc(idParoAnterior).get()
-                let horaInicio = moment(paroAnteriorObj.data().fechaFin);
-                let horaFin = moment(snaphot.data().hora);
-                let diff = horaFin.diff(horaInicio, "seconds")
-                let tipo = "uso";
-                if (ordenActiva.data().taza < diff) {
-                    tipo = "paro"
-                }
-                if (paroAnterior.tipo == "uso" && tipo == "uso") {
-                    paroAnteriorObj.ref.update({
-                        fechaFin: snaphot.data().hora
-                    })
-                } else {
-                    const idParoNuevo = moment(paroAnteriorObj.data().fechaFin).format("yyyyMMDDHHmmss")
-                    let paroNuevo = parosCollectionRef.doc(ordenActiva.data().id).collection("paros").doc(idParoNuevo)
-                    paroNuevo.set({
-                        fechaInicio: paroAnteriorObj.data().fechaFin,
-                        fechaFin: snaphot.data().hora,
-                        tipo
-                    })
-                }
-            }
-        } else {
-            console.log("No existe orden activa")
-        }
-
-    } catch (error) {
-        console.log(error)
-        return null;
-    }
-})
 
 exports.CrearResumenMinutos = functions.firestore.document("pulsos/{documentId}").onCreate(async (snaphot, context) => {
     try {
@@ -167,11 +107,11 @@ exports.CrearResumenHoras = functions.firestore.document("resumen/encoladora/res
         const minutoAnteriorData = minutoAnteriorSnap.docs[0]?.data()
         if (resumenActual.data()) {
             console.log("existe hora")
-            console.log(resumenMinuto.hora)
-
-            console.log(minutoAnteriorData)
             resumenActual.ref.update({
-                pulsos: resumenActual.data().pulsos + minutoAnteriorData.pulsos
+                pulsos: resumenActual.data().pulsos + minutoAnteriorData.pulsos,
+                tiempoUso: (resumenActual.data().tiempoUso ? resumenActual.data().tiempoUso : 0) + (minutoAnteriorData.tiempoUso ? minutoAnteriorData.tiempoUso : 0),
+                tiempoParo: (resumenActual.data().tiempoParo ? resumenActual.data().tiempoParo : 0) + (minutoAnteriorData.tiempoParo ? minutoAnteriorData.tiempoParo : 0)
+
             })
         } else {
             console.log("nuevo hora")
@@ -179,7 +119,10 @@ exports.CrearResumenHoras = functions.firestore.document("resumen/encoladora/res
                 const idResumenAnterior = moment(resumenMinuto.hora).set({ hour: moment(resumenMinuto.hora).hour() - 1 }).format("yyyyMMDDHH")
                 let resumenAnterior = await config.admin.firestore().doc(`/resumen/encoladora/resumenHoras/${idResumenAnterior}`).get();
                 resumenAnterior.ref.update({
-                    pulsos: resumenAnterior.data().pulsos + minutoAnteriorData.pulsos - 1
+                    pulsos: resumenAnterior.data().pulsos + minutoAnteriorData.pulsos - 1,
+                    tiempoUso: (resumenAnterior.data().tiempoUso ? resumenAnterior.data().tiempoUso : 0) + (minutoAnteriorData.tiempoUso ? minutoAnteriorData.tiempoUso : 0),
+                    tiempoParo: (resumenAnterior.data().tiempoParo ? resumenAnterior.data().tiempoParo : 0) + (minutoAnteriorData.tiempoParo ? minutoAnteriorData.tiempoParo : 0)
+
                 })
 
             }
@@ -208,7 +151,10 @@ exports.CrearResumenDias = functions.firestore.document("resumen/encoladora/resu
         if (resumenActual.data()) {
             console.log("existe dia")
             resumenActual.ref.update({
-                pulsos: resumenActual.data().pulsos + horaAnteriorData.pulsos
+                pulsos: resumenActual.data().pulsos + horaAnteriorData.pulsos,
+                tiempoUso: (resumenActual.data().tiempoUso ? resumenActual.data().tiempoUso : 0) + (horaAnteriorData.tiempoUso ? horaAnteriorData.tiempoUso : 0),
+                tiempoParo: (resumenActual.data().tiempoParo ? resumenActual.data().tiempoParo : 0) + (horaAnteriorData.tiempoParo ? horaAnteriorData.tiempoParo : 0)
+
             })
         } else {
             console.log("nuevo dia")
@@ -216,7 +162,10 @@ exports.CrearResumenDias = functions.firestore.document("resumen/encoladora/resu
                 const idResumenAnterior = moment(resumenHora.fechaInicio).set({ hour: moment(resumenHora.fechaInicio).date() - 1 }).format("yyyyMMDD")
                 let resumenAnterior = await config.admin.firestore().doc(`/resumen/encoladora/resumeDias/${idResumenAnterior}`).get();
                 resumenAnterior.ref.update({
-                    pulsos: resumenAnterior.data().pulsos + horaAnteriorData.pulsos - 1
+                    pulsos: resumenAnterior.data().pulsos + horaAnteriorData.pulsos - 1,
+                    tiempoUso: (resumenAnterior.data().tiempoUso ? resumenAnterior.data().tiempoUso : 0) + (horaAnteriorData.tiempoUso ? horaAnteriorData.tiempoUso : 0),
+                    tiempoParo: (resumenAnterior.data().tiempoParo ? resumenAnterior.data().tiempoParo : 0) + (horaAnteriorData.tiempoParo ? horaAnteriorData.tiempoParo : 0)
+
                 })
 
             }
@@ -235,3 +184,114 @@ exports.CrearResumenDias = functions.firestore.document("resumen/encoladora/resu
 
 });
 
+
+
+exports.crearParos = functions.firestore.document("pulsos/{documentId}").onCreate(async (snaphot, context) => {
+    try {
+        const pulso = snaphot.data()
+        const ordenActiva = await ordenActivaRef.get()
+        if (ordenActiva) {
+            const idParo = moment(ordenActiva.data().fechaInicio).format("yyyyMMDDHHmmss")
+            let paro = parosCollectionRef.doc(ordenActiva.data().id).collection("paros").doc(idParo)
+            const paroAnteriorSnap = await parosCollectionRef.doc(ordenActiva.data().id).
+                collection("paros").where("fechaFin", "<=", snaphot.data().hora).
+                orderBy("fechaFin", "desc").limit(1).get();
+            const paroAnterior = paroAnteriorSnap.docs[0]?.data()
+            let tipo = "uso";
+            let diff;
+            if (!paroAnterior) {
+                let horaInicio = moment(ordenActiva.data().fechaInicio);
+                let horaFin = moment(snaphot.data().hora);
+                diff = horaFin.diff(horaInicio, "seconds")
+                if (ordenActiva.data().taza < diff) {
+                    tipo = "paro"
+                }
+                paro.set({
+                    fechaInicio: ordenActiva.data().fechaInicio,
+                    fechaFin: snaphot.data().hora,
+                    tipo
+                })
+            } else {
+                const idParoAnterior = moment(paroAnterior.fechaInicio).format("yyyyMMDDHHmmss")
+                let paroAnteriorObj = await parosCollectionRef.doc(ordenActiva.data().id).
+                    collection("paros").doc(idParoAnterior).get()
+                let horaInicio = moment(paroAnteriorObj.data().fechaFin);
+                let horaFin = moment(snaphot.data().hora);
+                diff = horaFin.diff(horaInicio, "seconds")
+                if (ordenActiva.data().taza < diff) {
+                    tipo = "paro"
+                }
+                if (paroAnterior.tipo == "uso" && tipo == "uso") {
+                    paroAnteriorObj.ref.update({
+                        fechaFin: snaphot.data().hora
+                    })
+                } else {
+                    const idParoNuevo = moment(paroAnteriorObj.data().fechaFin).format("yyyyMMDDHHmmss")
+                    let paroNuevo = parosCollectionRef.doc(ordenActiva.data().id).collection("paros").doc(idParoNuevo)
+                    paroNuevo.set({
+                        fechaInicio: paroAnteriorObj.data().fechaFin,
+                        fechaFin: snaphot.data().hora,
+                        tipo
+                    })
+                }
+            }
+
+        } else {
+            console.log("No existe orden activa")
+        }
+
+    } catch (error) {
+        console.log(error)
+        return null;
+    }
+})
+
+exports.crearResumenTiemposC = functions.firestore.document("paros/encoladora/OFs/{documentId}/paros/{documentId}").onCreate(async (snaphot, context) => {
+    try {
+        console.log("crrate")
+        const paro = snaphot.data();
+        const idParoM = moment(paro.fechaFin).format("yyyyMMDDHHmm")
+        const resumenMinutosSnap = await resumenMinutosCollectionRef.doc(idParoM).get()
+        let diff;
+        let horaInicio = moment(paro.fechaInicio);
+        let horaFin = moment(paro.fechaFin);
+        diff = horaFin.diff(horaInicio, "seconds")
+        if (resumenMinutosSnap.data()) {
+            if (paro.tipo == "uso") {
+                resumenMinutosSnap.ref.update({
+                    tiempoUso: (resumenMinutosSnap.data().tiempoUso ? resumenMinutosSnap.data().tiempoUso : 0) + diff
+                })
+            } else {
+                resumenMinutosSnap.ref.update({
+                    tiempoParo: (resumenMinutosSnap.data().tiempoParo ? resumenMinutosSnap.data().tiempoParo : 0) + diff
+                })
+            }
+        }
+    } catch (error) {
+        console.log(error)
+        return null;
+    }
+})
+
+exports.crearResumenTiemposU = functions.firestore.document("paros/encoladora/OFs/{documentId}/paros/{documentId}").onUpdate(async (snaphot, context) => {
+    try {
+        console.log("update")
+
+        const paroAntes = snaphot.before.data();
+        const paroDespues = snaphot.after.data();
+        const idParoM = moment(paroAntes.fechaFin).format("yyyyMMDDHHmm")
+        const resumenMinutosSnap = await resumenMinutosCollectionRef.doc(idParoM).get()
+        let horaInicio = moment(paroAntes.fechaFin);
+        let horaFin = moment(paroDespues.fechaFin);
+        let diff = horaFin.diff(horaInicio, "seconds");
+
+        if (resumenMinutosSnap.data()) {
+            resumenMinutosSnap.ref.update({
+                tiempoUso: (resumenMinutosSnap.data().tiempoUso ? resumenMinutosSnap.data().tiempoUso : 0) + diff
+            })
+        }
+    } catch (error) {
+        console.log(error)
+        return null;
+    }
+})
