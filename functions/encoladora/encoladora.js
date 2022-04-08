@@ -1,10 +1,10 @@
 const functions = require("firebase-functions");
 const config = require("../fire_config");
-const ordenActivaRef = config.db.collection("ordenActiva").doc("encoladora");
-const resumenDiasCollectionRef = config.db.collection("resumen/encoladora/resumenDias");
-const resumenHorasCollectionRef = config.db.collection("resumen/encoladora/resumenHoras");
-const resumenMinutosCollectionRef = config.db.collection("resumen/encoladora/resumenMinutos");
-const parosCollectionRef = config.db.collection("paros/encoladora/OFs");
+const ordenActivaRef = config.db.collection("ordenActiva_test").doc("encoladora");
+const resumenDiasCollectionRef = config.db.collection("resumen_test/encoladora/resumenDias");
+const resumenHorasCollectionRef = config.db.collection("resumen_test/encoladora/resumenHoras");
+const resumenMinutosCollectionRef = config.db.collection("resumen_test/encoladora/resumenMinutos");
+const parosCollectionRef = config.db.collection("paros_test/encoladora/OFs");
 
 
 const moment = require("moment");
@@ -22,11 +22,7 @@ const { firestore } = require("firebase-admin");
 // });
 
 
-exports.crearOrdenSegmentada = functions.pubsub.schedule('every 2 minutes').onRun((context) => {
-    return null;
-});
-
-exports.prueba = functions.firestore.document("ordenes/encoladora").onUpdate((snaphot, context) => {
+exports.prueba = functions.firestore.document("ordenes_test/encoladora").onUpdate((snaphot, context) => {
     try {
         const orden = snaphot.before.data()
         const taza = orden.taza
@@ -35,9 +31,9 @@ exports.prueba = functions.firestore.document("ordenes/encoladora").onUpdate((sn
         const now = moment()
         //compara si la fecha de hoy esta entre la fecha de inicio y fin de la orden actual
         const timeCompare = now > fechaInicio && now < fechaFin
-        let ordenActiva = config.admin.firestore().doc("/ordenActiva/encoladora");
+        let ordenActiva = config.admin.firestore().doc("/ordenActiva_test/encoladora");
         if (timeCompare) {
-            let ordenSeg = config.db.collection("/ordenesSegmentadas/encoladora/ordenes").doc(moment().format("yyyMMDD"));
+            let ordenSeg = config.db.collection("/ordenesSegmentadas_test/encoladora/ordenes").doc(moment().format("yyyMMDD"));
             const ordenObj = {
                 id: orden.id,
                 taza,
@@ -71,13 +67,11 @@ exports.prueba = functions.firestore.document("ordenes/encoladora").onUpdate((sn
 
 });
 
-
-
 exports.CrearResumenMinutos = functions.firestore.document("pulsos/{documentId}").onCreate(async (snaphot, context) => {
     try {
         const pulso = snaphot.data()
         const idResumenMinuto = moment(pulso.hora).format("yyyyMMDDHHmm")
-        let resumenActual = await config.admin.firestore().doc(`/resumen/encoladora/resumenMinutos/${idResumenMinuto}`).get();
+        let resumenActual = await config.admin.firestore().doc(`/resumen_test/encoladora/resumenMinutos/${idResumenMinuto}`).get();
         if (resumenActual.data()) {
 
             resumenActual.ref.update({
@@ -98,11 +92,12 @@ exports.CrearResumenMinutos = functions.firestore.document("pulsos/{documentId}"
     }
 
 });
-exports.CrearResumenHoras = functions.firestore.document("resumen/encoladora/resumenMinutos/{documentId}").onCreate(async (snaphot, context) => {
+
+exports.CrearResumenHoras = functions.firestore.document("resumen_test/encoladora/resumenMinutos/{documentId}").onCreate(async (snaphot, context) => {
     try {
         const resumenMinuto = snaphot.data()
         const idResumenHora = moment(resumenMinuto.hora).format("yyyyMMDDHH")
-        let resumenActual = await config.admin.firestore().doc(`/resumen/encoladora/resumenHoras/${idResumenHora}`).get();
+        let resumenActual = await config.admin.firestore().doc(`/resumen_test/encoladora/resumenHoras/${idResumenHora}`).get();
         const minutoAnteriorSnap = await resumenMinutosCollectionRef.where("hora", "<", resumenMinuto.hora).orderBy("hora", "desc").limit(1).get()
         const minutoAnteriorData = minutoAnteriorSnap.docs[0]?.data()
         if (resumenActual.data()) {
@@ -117,7 +112,7 @@ exports.CrearResumenHoras = functions.firestore.document("resumen/encoladora/res
             console.log("nuevo hora")
             if (minutoAnteriorData?.pulsos > 1) {
                 const idResumenAnterior = moment(resumenMinuto.hora).set({ hour: moment(resumenMinuto.hora).hour() - 1 }).format("yyyyMMDDHH")
-                let resumenAnterior = await config.admin.firestore().doc(`/resumen/encoladora/resumenHoras/${idResumenAnterior}`).get();
+                let resumenAnterior = await config.admin.firestore().doc(`/resumen_test/encoladora/resumenHoras/${idResumenAnterior}`).get();
                 resumenAnterior.ref.update({
                     pulsos: resumenAnterior.data().pulsos + minutoAnteriorData.pulsos - 1,
                     tiempoUso: (resumenAnterior.data().tiempoUso ? resumenAnterior.data().tiempoUso : 0) + (minutoAnteriorData.tiempoUso ? minutoAnteriorData.tiempoUso : 0),
@@ -141,11 +136,11 @@ exports.CrearResumenHoras = functions.firestore.document("resumen/encoladora/res
 
 });
 
-exports.CrearResumenDias = functions.firestore.document("resumen/encoladora/resumenHoras/{documentId}").onCreate(async (snaphot, context) => {
+exports.CrearResumenDias = functions.firestore.document("resumen_test/encoladora/resumenHoras/{documentId}").onCreate(async (snaphot, context) => {
     try {
         const resumenHora = snaphot.data()
         const idResumenDia = moment(resumenHora.fechaInicio).format("yyyyMMDD")
-        let resumenActual = await config.admin.firestore().doc(`/resumen/encoladora/resumenDias/${idResumenDia}`).get();
+        let resumenActual = await config.admin.firestore().doc(`/resumen_test/encoladora/resumenDias/${idResumenDia}`).get();
         const horaAnteriorSnap = await resumenHorasCollectionRef.where("fechaInicio", "<", resumenHora.fechaInicio).orderBy("fechaInicio", "desc").limit(1).get()
         const horaAnteriorData = horaAnteriorSnap.docs[0]?.data()
         if (resumenActual.data()) {
@@ -160,7 +155,7 @@ exports.CrearResumenDias = functions.firestore.document("resumen/encoladora/resu
             console.log("nuevo dia")
             if (horaAnteriorData?.pulsos > 1) {
                 const idResumenAnterior = moment(resumenHora.fechaInicio).set({ hour: moment(resumenHora.fechaInicio).date() - 1 }).format("yyyyMMDD")
-                let resumenAnterior = await config.admin.firestore().doc(`/resumen/encoladora/resumeDias/${idResumenAnterior}`).get();
+                let resumenAnterior = await config.admin.firestore().doc(`/resumen_test/encoladora/resumeDias/${idResumenAnterior}`).get();
                 resumenAnterior.ref.update({
                     pulsos: resumenAnterior.data().pulsos + horaAnteriorData.pulsos - 1,
                     tiempoUso: (resumenAnterior.data().tiempoUso ? resumenAnterior.data().tiempoUso : 0) + (horaAnteriorData.tiempoUso ? horaAnteriorData.tiempoUso : 0),
@@ -183,8 +178,6 @@ exports.CrearResumenDias = functions.firestore.document("resumen/encoladora/resu
     }
 
 });
-
-
 
 exports.crearParos = functions.firestore.document("pulsos/{documentId}").onCreate(async (snaphot, context) => {
     try {
@@ -244,9 +237,9 @@ exports.crearParos = functions.firestore.document("pulsos/{documentId}").onCreat
         console.log(error)
         return null;
     }
-})
+});
 
-exports.crearResumenTiemposC = functions.firestore.document("paros/encoladora/OFs/{documentId}/paros/{documentId}").onCreate(async (snaphot, context) => {
+exports.crearResumenTiemposC = functions.firestore.document("paros_test/encoladora/OFs/{documentId}/paros/{documentId}").onCreate(async (snaphot, context) => {
     try {
         console.log("crrate")
         const paro = snaphot.data();
@@ -271,9 +264,9 @@ exports.crearResumenTiemposC = functions.firestore.document("paros/encoladora/OF
         console.log(error)
         return null;
     }
-})
+});
 
-exports.crearResumenTiemposU = functions.firestore.document("paros/encoladora/OFs/{documentId}/paros/{documentId}").onUpdate(async (snaphot, context) => {
+exports.crearResumenTiemposU = functions.firestore.document("paros_test/encoladora/OFs/{documentId}/paros/{documentId}").onUpdate(async (snaphot, context) => {
     try {
         console.log("update")
 
