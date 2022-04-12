@@ -11,7 +11,7 @@ exports.CrearResumenHoras = encoladora.CrearResumenHoras
 exports.CrearResumenDias = encoladora.CrearResumenDias
 exports.crearResumenTiemposC = encoladora.crearResumenTiemposC;
 exports.crearResumenTiemposU = encoladora.crearResumenTiemposU;
-
+exports.finalizarOrden = encoladora.finalizarOrden
 
 //paros
 
