@@ -4,12 +4,12 @@ const ordenActivaRef = config.db.collection("ordenActiva_test").doc("encoladora"
 const resumenDiasCollectionRef = config.db.collection("resumen_test/encoladora/resumenDias");
 const resumenHorasCollectionRef = config.db.collection("resumen_test/encoladora/resumenHoras");
 const resumenMinutosCollectionRef = config.db.collection("resumen_test/encoladora/resumenMinutos");
-const parosCollectionRef = config.db.collection("paros_test/encoladora/OFs");
+const parosCollectionRef2 = config.db.collection("paros_test/encoladora/OFs");
 
 
-const moment = require("moment");
+var moment = require('moment-timezone');
 const { firestore } = require("firebase-admin");
-
+moment.tz.setDefault("America/Guayaquil");
 // const ordenesCollectionRef = config.db.collection("ordenes/encoladora");
 
 
@@ -29,7 +29,6 @@ exports.prueba = functions.firestore.document("ordenes_test/encoladora").onUpdat
         const fechaInicio = moment(orden.fechaInicio)
         const fechaFin = moment(orden.fechaFin)
         const now = moment()
-        console.log(now.format("yyyy-MM-DD HH:mm:ss"))
         //compara si la fecha de hoy esta entre la fecha de inicio y fin de la orden actual
         const timeCompare = now > fechaInicio && now < fechaFin
         let ordenActiva = config.admin.firestore().doc("/ordenActiva_test/encoladora");
@@ -52,7 +51,6 @@ exports.prueba = functions.firestore.document("ordenes_test/encoladora").onUpdat
                         second: moment(orden.fechaFin).second()
                     }).format("yyyy-MM-DD HH:mm:ss")
             }
-            console.log(ordenObj)
             ordenSeg.set(ordenObj);
             let ordActiva = { ...ordenObj }
             ordActiva.id = moment().format("yyyMMDD");
@@ -71,8 +69,7 @@ exports.prueba = functions.firestore.document("ordenes_test/encoladora").onUpdat
 
 exports.finalizarOrden = functions.firestore.document("ordenActiva_test/encoladora").onUpdate(async (snapshot, context) => {
     const estado = snapshot.after.data().activa
-    const date = new Date()
-    const now = moment(date.toLocaleString("en-US", { timeZone: 'America/Guayaquil' })).format("yyyy-MM-DD HH:mm:ss")
+    const now = moment().format("yyyy-MM-DD HH:mm:ss")
     console.log(now)
     if (!estado) {
         const minutoAnteriorSnap = await resumenMinutosCollectionRef.where("hora", "<", now).
@@ -236,12 +233,11 @@ exports.crearParos = functions.firestore.document("pulsos/{documentId}").onCreat
     try {
         const pulso = snaphot.data()
         const ordenActivaSnap = await ordenActivaRef.get()
-        console.log(ordenActivaSnap)
         const ordenActiva = ordenActivaSnap.data()
         if (ordenActiva?.activa) {
             const idParo = moment(ordenActiva.fechaInicio).format("yyyyMMDDHHmmss")
-            let paro = parosCollectionRef.doc(ordenActiva.id).collection("paros").doc(idParo)
-            const paroAnteriorSnap = await parosCollectionRef.doc(ordenActiva.id).
+            let paro = parosCollectionRef2.doc(ordenActiva.id).collection("paros").doc(idParo)
+            const paroAnteriorSnap = await parosCollectionRef2.doc(ordenActiva.id).
                 collection("paros").where("fechaFin", "<=", snaphot.data().hora).
                 orderBy("fechaFin", "desc").limit(1).get();
             const paroAnterior = paroAnteriorSnap.docs[0]?.data()
@@ -261,7 +257,7 @@ exports.crearParos = functions.firestore.document("pulsos/{documentId}").onCreat
                 })
             } else {
                 const idParoAnterior = moment(paroAnterior.fechaInicio).format("yyyyMMDDHHmmss")
-                let paroAnteriorObj = await parosCollectionRef.doc(ordenActiva.id).
+                let paroAnteriorObj = await parosCollectionRef2.doc(ordenActiva.id).
                     collection("paros").doc(idParoAnterior).get()
                 let horaInicio = moment(paroAnteriorObj.data().fechaFin);
                 let horaFin = moment(snaphot.data().hora);
@@ -275,7 +271,7 @@ exports.crearParos = functions.firestore.document("pulsos/{documentId}").onCreat
                     })
                 } else {
                     const idParoNuevo = moment(paroAnteriorObj.data().fechaFin).format("yyyyMMDDHHmmss")
-                    let paroNuevo = parosCollectionRef.doc(ordenActiva.id).collection("paros").doc(idParoNuevo)
+                    let paroNuevo = parosCollectionRef2.doc(ordenActiva.id).collection("paros").doc(idParoNuevo)
                     paroNuevo.set({
                         fechaInicio: paroAnteriorObj.data().fechaFin,
                         fechaFin: snaphot.data().hora,
