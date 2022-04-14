@@ -159,6 +159,8 @@ exports.CrearResumenHoras = functions.firestore.document("resumen_test/encolador
             })
         } else {
             console.log("nuevo hora")
+            //aqui debe haber condicion si el minuto anterior pertenece al mismo dia, caso contrario no debe hacer nada
+
             if (minutoAnteriorData?.pulsos > 1) {
                 const idResumenAnterior = moment(minutoAnteriorData.hora).format("yyyyMMDDHH")
                 let resumenAnterior = await config.admin.firestore().doc(`/resumen_test/encoladora/resumenHoras/${idResumenAnterior}`).get();
@@ -203,15 +205,19 @@ exports.CrearResumenDias = functions.firestore.document("resumen_test/encoladora
             })
         } else {
             console.log("nuevo dia")
+            //aqui debe haber condicion si el hora anterior pertenece al mismo dia, caso contrario no debe hacer nada
+
             if (horaAnteriorData?.pulsos > 1) {
                 const idResumenAnterior = moment(horaAnteriorData.fechaInicio).format("yyyyMMDD")
                 let resumenAnterior = await config.admin.firestore().doc(`/resumen_test/encoladora/resumenDias/${idResumenAnterior}`).get();
-                resumenAnterior.ref.update({
-                    pulsos: resumenAnterior.data().pulsos + horaAnteriorData.pulsos - 1,
-                    tiempoUso: (resumenAnterior.data().tiempoUso ? resumenAnterior.data().tiempoUso : 0) + (horaAnteriorData.tiempoUso ? horaAnteriorData.tiempoUso : 0),
-                    tiempoParo: (resumenAnterior.data().tiempoParo ? resumenAnterior.data().tiempoParo : 0) + (horaAnteriorData.tiempoParo ? horaAnteriorData.tiempoParo : 0)
+                if (resumenAnterior.data()) {
+                    resumenAnterior.ref.update({
+                        pulsos: resumenAnterior.data().pulsos + horaAnteriorData.pulsos - 1,
+                        tiempoUso: (resumenAnterior.data().tiempoUso ? resumenAnterior.data().tiempoUso : 0) + (horaAnteriorData.tiempoUso ? horaAnteriorData.tiempoUso : 0),
+                        tiempoParo: (resumenAnterior.data().tiempoParo ? resumenAnterior.data().tiempoParo : 0) + (horaAnteriorData.tiempoParo ? horaAnteriorData.tiempoParo : 0)
 
-                })
+                    })
+                }
 
             }
             let resumen = resumenDiasCollectionRef.doc(idResumenDia)
